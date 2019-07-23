@@ -46,13 +46,16 @@ public class Screenshot extends CordovaPlugin {
     protected final static String[] PERMISSIONS = {Manifest.permission.WRITE_EXTERNAL_STORAGE};
     public static final int PERMISSION_DENIED_ERROR = 20;
     public static final int SAVE_SCREENSHOT_SEC = 0;
+    public static final int SAVE_SCREENSHOT_ALBUM_SEC = 1;
 
     @Override
     public Object onMessage(String id, Object data) {
         if (id.equals("onGotXWalkBitmap")) {
             Bitmap bitmap = (Bitmap) data;
             if (bitmap != null) {
-                if (mAction.equals("saveScreenshot")) {
+                if (mAction.equals("saveScreenshotToAlbum")) {
+                    saveScreenshotToAlbum(bitmap);
+                } else if (mAction.equals("saveScreenshot")) {
                     saveScreenshot(bitmap, mFormat, mFileName, mQuality);
                 } else if (mAction.equals("getScreenshotAsURI")) {
                     getScreenshotAsURI(bitmap, mQuality);
@@ -91,6 +94,58 @@ public class Screenshot extends CordovaPlugin {
         mediaScanIntent.setData(contentUri);
         this.cordova.getActivity().sendBroadcast(mediaScanIntent);
     }
+      /**
+     * 保存图片到图库
+     * @param context
+     * @param bmp
+     */
+    private void saveScreenshotToAlbum(Bitmap bitmap) {
+     
+        Context context = this.cordova.getActivity();
+        // 首先保存图片
+        File appDir = new File(Environment.getExternalStorageDirectory(),
+                "desheng");
+        if (!appDir.exists()) {
+            appDir.mkdir();
+        }
+        String fileName = System.currentTimeMillis() + ".jpg";
+        File file = new File(appDir, fileName);
+        try {
+            FileOutputStream fos = new FileOutputStream(file);
+            bmp.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            fos.flush();
+            fos.close();
+        } catch (FileNotFoundException e) {
+            MyToastUtils.showShortToast(context, "保存失败");
+            e.printStackTrace();
+        } catch (IOException e) {
+            MyToastUtils.showShortToast(context, "保存失败");
+            e.printStackTrace();
+        }
+
+        // 其次把文件插入到系统图库
+        try {
+            MediaStore.Images.Media.insertImage(context.getContentResolver(),
+                    file.getAbsolutePath(), fileName, null);
+            MyToastUtils.showShortToast(context, "保存成功");
+
+             JSONObject jsonRes = new JSONObject();
+            jsonRes.put("filePath", file.getAbsolutePath());
+            PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
+            mCallbackContext.sendPluginResult(result);
+
+        } catch (JSONException e) {
+            mCallbackContext.error(e.getMessage());
+
+        } catch (IOException e) {
+            mCallbackContext.error(e.getMessage());
+
+        }
+        // 最后通知图库更新
+        context.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE,
+                Uri.fromFile(new File(file.getPath()))));
+    }
+
 
     private void saveScreenshot(Bitmap bitmap, String format, String fileName, Integer quality) {
         try {
@@ -153,6 +208,7 @@ public class Screenshot extends CordovaPlugin {
         }
     }
 
+
     public void saveScreenshot() throws JSONException{
         mFormat = (String) mArgs.get(0);
         mQuality = (Integer) mArgs.get(1);
@@ -172,6 +228,20 @@ public class Screenshot extends CordovaPlugin {
                 }
             }
         });
+    }
+
+    public void saveScreenshotToAlbum() throws JSONException{
+            
+            super.cordova.getActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    
+                        Bitmap bitmap = getBitmap();
+                        if (bitmap != null) {
+                            saveScreenshotToAlbum(bitmap);
+                        }
+                }
+            });
     }
 
     public void getScreenshotAsURI() throws JSONException{
@@ -219,8 +289,14 @@ public class Screenshot extends CordovaPlugin {
         mCallbackContext = callbackContext;
         mAction = action;
         mArgs = args;
-
-        if (action.equals("saveScreenshot")) {
+        if (action.equals("saveScreenshotToAlbum")) {
+            if(PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
+                saveScreenshotToAlbum();
+            } else {
+                PermissionHelper.requestPermissions(this, SAVE_SCREENSHOT_ALBUM_SEC, PERMISSIONS);
+            }
+            return true;
+        }else if (action.equals("saveScreenshot")) {
             if(PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
                 saveScreenshot();
             } else {
@@ -253,6 +329,9 @@ public class Screenshot extends CordovaPlugin {
         {
             case SAVE_SCREENSHOT_SEC:
                 saveScreenshot();
+                break;
+            case SAVE_SCREENSHOT_ALBUM_SEC:
+                saveScreenshotToAlbum();
                 break;
         }
     }
