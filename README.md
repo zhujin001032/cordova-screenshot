@@ -11,7 +11,7 @@ The Screenshot plugin allows your application to take screenshots of the current
 install it via cordova cli
 
 ```
-cordova plugin add https://github.com/gitawego/cordova-screenshot.git
+cordova plugin add https://github.com/zhujin001032/cordova-screenshot.git
 ```
 
 notice:
@@ -19,17 +19,18 @@ in iOS, only jpg format is supported
 in Android, the default WebView and [Crosswalk](https://crosswalk-project.org/documentation/cordova.html) are both supported
 
 ## usage
-
+import { Screenshot } from '@ionic-native/screenshot/ngx';
+constructor(
+    private screenshot: Screenshot)
+  {
 
 ```js
-navigator.screenshot.save(function(error,res){
-  if(error){
-    console.error(error);
-  }else{
-    console.log('ok',res.filePath);
-  }
-});
-```
+this.screenshot.saveToAlbum().then(onSuccess => {
+      console.log("success", onSuccess.filePath);
+    }, onError => {
+      console.log("fail");
+    });
+ ```
 take screenshot with jpg and custom quality
 ```js
 navigator.screenshot.save(function(error,res){
@@ -43,7 +44,7 @@ navigator.screenshot.save(function(error,res){
 
 define a filename
 ```js
-navigator.screenshot.save(function(error,res){
+this.screenshot.screenshot.save(function(error,res){
   if(error){
     console.error(error);
   }else{
@@ -56,7 +57,7 @@ screenshot files are stored in /sdcard/Pictures for android.
 
 take screenshot and get it as Data URI
 ```js
-navigator.screenshot.URI(function(error,res){
+this.screenshot.screenshot.URI(function(error,res){
   if(error){
     console.error(error);
   }else{
@@ -64,33 +65,6 @@ navigator.screenshot.URI(function(error,res){
     document.body.innerHTML = html;
   }
 },50);
-```
-
-## usage in AngularJS
-
-```js
-.service('$cordovaScreenshot', ['$q', function ($q){
-	return {
-		capture: function (filename, extension, quality){
-			extension = extension || 'jpg';
-			quality = quality || '100';
-
-			var defer = $q.defer();
-			
-			navigator.screenshot.save(function (error, res){
-				if (error) {
-					console.error(error);
-					defer.reject(error);
-				} else {
-					console.log('screenshot saved in: ', res.filePath);
-					defer.resolve(res.filePath);
-				}
-			}, extension, quality, filename);
-			
-			return defer.promise;
-		}
-	};
-}])
 ```
 
 ## Known Issue
