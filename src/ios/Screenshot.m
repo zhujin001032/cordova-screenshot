@@ -72,7 +72,59 @@ CGFloat statusBarHeight()
 	NSString* callbackId = command.callbackId;
 	[self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
 }
-
+- (void)saveScreenshotToAlbum:(CDVInvokedUrlCommand*)command
+{
+    UIImage *image = [self getScreenshot];
+    NSMutableArray *imageIds = [NSMutableArray array];
+    [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+        
+        //写入图片到相册
+        PHAssetChangeRequest *req = [PHAssetChangeRequest creationRequestForAssetFromImage:image];
+        //记录本地标识，等待完成后取到相册中的图片对象
+        [imageIds addObject:req.placeholderForCreatedAsset.localIdentifier];
+        
+        
+    } completionHandler:^(BOOL success, NSError * _Nullable error) {
+        
+        NSLog(@"success = %d, error = %@", success, error);
+        
+        if (success)
+        {
+            //成功后取相册中的图片对象
+            __block PHAsset *imageAsset = nil;
+            PHFetchResult *result = [PHAsset fetchAssetsWithLocalIdentifiers:imageIds options:nil];
+            [result enumerateObjectsUsingBlock:^(PHAsset * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                
+                imageAsset = obj;
+                *stop = YES;
+                
+            }];
+            
+            if (imageAsset)
+            {
+                //加载图片数据
+                [[PHImageManager defaultManager] requestImageDataForAsset:imageAsset
+                                                                  options:nil
+                                                            resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
+                                                                NSURL *fileUrl = [info objectForKey:@"PHImageFileURLKey"];
+                                                                CDVPluginResult* pluginResult = nil;
+                                                                NSDictionary *jsonObj = [ [NSDictionary alloc]
+                                                                                         initWithObjectsAndKeys :
+                                                                                         @"true", @"success",
+                                                                                         fileUrl.absoluteString, @"filePath",
+                                                                                         nil
+                                                                                         ];
+                                                                
+                                                                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
+                                                                NSString* callbackId = command.callbackId;
+                                                                [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+                                                                
+                                                            }];
+            }
+        }
+        
+    }];
+}
 - (void) getScreenshotAsURI:(CDVInvokedUrlCommand*)command
 {
 	NSNumber *quality = command.arguments[0];
