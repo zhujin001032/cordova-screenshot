@@ -11,6 +11,7 @@
 
 #import <Cordova/CDV.h>
 #import "Screenshot.h"
+#import <Photos/Photos.h>
 
 @implementation Screenshot
 
